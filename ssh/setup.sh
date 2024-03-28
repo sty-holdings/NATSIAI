@@ -44,6 +44,16 @@ function init_script() {
   . core-devops/scripts/0-initialize-core-scripts.sh
   #
   display_spacer
+  #
+  # Pulling configuration from Github
+  #
+  display_info "Remove existing configurations directory, if any."
+  rm -rf configurations
+  display_info "Cloning configurations"
+  git clone https://github.com/sty-holdings/configurations
+  display_spacer
+  display_info "Configuration is available."
+  display_spacer
   display_info "Script has been initialized."
 }
 
@@ -53,7 +63,6 @@ function print_exports() {
   echo "LOCAL_USER_HOME_DIRECTORY:\t$LOCAL_USER_HOME_DIRECTORY"
   echo "NATSCLI_INSTALL_URL:\t\t$NATSCLI_INSTALL_URL"
   echo "NATS_ACCOUNT:\t\t\t$NATS_ACCOUNT"
-  echo "NATS_ACCOUNT_USER:\t\t$NATS_ACCOUNT_USER"
   echo "NATS_BIN:\t\t\t$NATS_BIN"
   echo "NATS_CONF_NAME:\t\t\tnats.conf"
   echo "NATS_INSTALL_DIRECTORY:\t\t$NATS_INSTALL_DIRECTORY"
@@ -85,6 +94,7 @@ function print_exports() {
   echo "NSC_INSTALL_URL:\t\t$NSC_INSTALL_URL"
   echo "ROOT_DIRECTORY:\t\t\t$ROOT_DIRECTORY"
   echo "SERVER_ENVIRONMENT:\t\t$SERVER_ENVIRONMENT"
+  echo "SYSTEM_USER_PARENT_GROUP:\t\t$SYSTEM_USER_PARENT_GROUP"
   echo "SERVER_INSTANCE_IPV4:\t\t$SERVER_INSTANCE_IPV4"
   echo "TEMPLATE_DIRECTORY:\t\t$TEMPLATE_DIRECTORY"
   echo "WORKING_AS:\t\t\t$WORKING_AS"
@@ -105,13 +115,13 @@ function print_usage() {
   echo "  -D\t\t\t Do not display the export and yaml settings."
   echo
   echo "Actions (Listing in order of recommended execution)"
-  echo "  -S\t Scrub NATS from the system. Executables, user, and directories."
+  echo "  -S\t Scrub NATS from the system. Executables, users, and directories."
   echo "  -U\t Create the NATS system user ($NATS_SYSTEM_USER). User can not login."
   echo "  -i\t (Skip -T) Installing nats-server, natscli, nsc and create nats.conf with TLS."
   echo "  -T\t (Skip -i) Installing nats-server, natscli, nsc and create nats.conf without TLS."
   echo "  -o\t Create an operator with a key and make signing keys required."
   echo "  -a\t (Skip -A) Create an account with a key and make signing keys required."
-  echo "  -A\t (Skip -a) Create an account without a key and signing keys are not needed."
+  echo "  -A\t (Skip -a) Create an account without a key and signing keys are unnecessary."
   echo "  -r\t Generate and install the resolver.conf file."
   echo "  -P\t Push the operator, account, user and resolver to the running NATS server without TLS."
   echo "  -n\t (Skip -N) Installing nats.conf with TLS settings. Make sure to also run -C."
@@ -194,7 +204,7 @@ function validate_parameters() {
     local Failed="true"
     display_error "The system user must be provided."
   fi
-  if [ -z "$SYSTEM_USERS_HOME_DIRECTORY" ]; then
+  if [ -z "$SYSTEM_USER_HOME_DIRECTORY" ]; then
     local Failed="true"
     display_error "The system users home directory (FQN) must be provided."
   fi
@@ -266,26 +276,10 @@ function validate_nsc_install_url() {
 }
 
 # shellcheck disable=SC2034
-function validate_server_user_parent_group() {
-  if [ -z "$SERVER_USER_PARENT_GROUP" ]; then
-    validate_server_user_parent_group_result="failed"
-    display_error "The SERVER_USER_PARENT_GROUP must be provided."
-  fi
-}
-
-# shellcheck disable=SC2034
 function validate_template_directory() {
   if [ -z "$TEMPLATE_DIRECTORY" ]; then
     validate_template_directory_result="failed"
     display_error "The TEMPLATE_DIRECTORY must be provided."
-  fi
-}
-
-# shellcheck disable=SC2034
-function validate_working_as_home_directory() {
-  if [ -z "$WORKING_AS_HOME_DIRECTORY" ]; then
-    validate_working_as_home_directory_result="failed"
-    display_error "The WORKING_AS_HOME_DIRECTORY must be provided."
   fi
 }
 
@@ -372,15 +366,6 @@ function run_script() {
 #
   validate_arguments
 #
-# Pulling configuration from Github
-#
-  display_info "Remove existing configurations directory, if any."
-  rm -rf configurations
-  display_info "Cloning configurations"
-  git clone https://github.com/sty-holdings/configurations
-  display_spacer
-  display_info "Configuration is available."
-#
 # Display yaml settings
 #
   display_spacer
@@ -401,6 +386,7 @@ function run_script() {
   myExports=$(cat /tmp/$now-exports.sh)
   # shellcheck disable=SC2086
   eval $myExports
+  exit
   rm /tmp/*-exports.sh
 #
 # Validate yaml file parameters
@@ -687,12 +673,16 @@ function run_script() {
     display_spacer
     ;;
   SYSTEMUSER)
-    display_info "ACTION: -U Create the $NATS_ACCOUNT_USER system user. User can not login."
-    validate_server_user_parent_group
+    display_info "ACTION: -U Create the $NATS_SYSTEM_USER system user. User can not login."
+
+    echo "x=$SYSTEM_USER_PARENT_GROUP"
+
+    validate_system_user_parent_group
     validate_working_as_home_directory
     if [ "$validate_server_user_parent_group_result" == "failed" ] || [ "$validate_working_as_home_directory_result" == "failed" ]; then
       exit
     fi
+    # shellcheck disable=SC2086
     build_ssh_identity $IDENTITY_FILENAME
     login_allowed='false'
     install_server_user "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 $NATS_SYSTEM_USER $SERVER_USER_PARENT_GROUP $login_allowed
