@@ -50,8 +50,7 @@ function init_script() {
 # shellcheck disable=SC2028
 function print_exports() {
   echo "IDENTITY_FILENAME:\t\t$IDENTITY_FILENAME"
-  echo "LOCAL_USER_HOME_DIRECTORY:\t\t$LOCAL_USER_HOME_DIRECTORY"
-  echo "INSTANCE_DNS_IPV4:\t\t$INSTANCE_DNS_IPV4"
+  echo "LOCAL_USER_HOME_DIRECTORY:\t$LOCAL_USER_HOME_DIRECTORY"
   echo "NATSCLI_INSTALL_URL:\t\t$NATSCLI_INSTALL_URL"
   echo "NATS_ACCOUNT:\t\t\t$NATS_ACCOUNT"
   echo "NATS_ACCOUNT_USER:\t\t$NATS_ACCOUNT_USER"
@@ -65,6 +64,7 @@ function print_exports() {
     echo "NATS_PORT:\t\t\t$NATS_PORT"
   fi
   echo "NATS_SERVER_INSTALL_URL:\t$NATS_SERVER_INSTALL_URL"
+  echo "NATS_SERVER_NAME:\t\t$NATS_SERVER_NAME"
   echo "NATS_SYSTEM_USER:\t\t$NATS_SYSTEM_USER"
   echo "NATS TLS:"
   if [ -z "$CERT_DIRECTORY" ] || [ -z "$CA_BUNDLE_FILENAME" ] || [ -z "$CERT_FILENAME" ] || [ -z "$CERT_KEY_FILENAME" ]; then
@@ -77,16 +77,17 @@ function print_exports() {
   fi
   echo "NATS_URL:\t\t\t$NATS_URL"
   if [ -z "$NATS_WEBSOCKET_PORT" ]; then
-    echo "NATS_WEBSOCKET_PORT:\t is not being used"
+    echo "NATS_WEBSOCKET_PORT: is not being used"
   else
-    echo "NATS_WEBSOCKET_PORT:\t\t$NATS_WEBSOCKET_PORT"
+    echo "NATS_WEBSOCKET_PORT:\t\t\t$NATS_WEBSOCKET_PORT"
   fi
   echo "NSC_BIN:\t\t\t$NSC_BIN"
   echo "NSC_INSTALL_URL:\t\t$NSC_INSTALL_URL"
   echo "ROOT_DIRECTORY:\t\t\t$ROOT_DIRECTORY"
   echo "SERVER_ENVIRONMENT:\t\t$SERVER_ENVIRONMENT"
+  echo "SERVER_INSTANCE_IPV4:\t\t$SERVER_INSTANCE_IPV4"
   echo "TEMPLATE_DIRECTORY:\t\t$TEMPLATE_DIRECTORY"
-  echo "WORKING_AS:\t\t\t$WORKING_AS   *** IMPORTANT - DOUBLE CHECK THIS VALUE ***"
+  echo "WORKING_AS:\t\t\t$WORKING_AS"
   display_spacer
 }
 
@@ -180,14 +181,14 @@ function validate_parameters() {
     local Failed="true"
     display_error "The NSC bin must be provided."
   fi
-  if [ -z "$SERVER_INSTANCE_IPV4" ]; then
-    local Failed="true"
-    display_error "The IPV4 address or DNS entry must be provided."
-  fi
   validate_server_environment
   # shellcheck disable=SC2154
   if [ "$validate_server_environment_result" == "failed" ]; then
     exit 99
+  fi
+  if [ -z "$SERVER_INSTANCE_IPV4" ]; then
+    local Failed="true"
+    display_error "The IPV4 address or DNS entry must be provided."
   fi
   if [ -z "$SYSTEM_USER" ]; then
     local Failed="true"
@@ -196,6 +197,10 @@ function validate_parameters() {
   if [ -z "$SYSTEM_USERS_HOME_DIRECTORY" ]; then
     local Failed="true"
     display_error "The system users home directory (FQN) must be provided."
+  fi
+  if [ -z "$WORKING_AS" ]; then
+    local Failed="true"
+    display_error "The working as users must be provided."
   fi
 
   if [ "$Failed" == "true" ]; then
@@ -311,6 +316,7 @@ function run_script() {
       ;;
     I)
       display_info "ACTION: -I Print action variable usage."
+      # shellcheck disable=SC2086
       print_additional_info $FILENAME
       display_spacer
       exit 0
@@ -413,14 +419,9 @@ function run_script() {
 #
 # Building ssh identity file for the server user
 #
+  IDENTITY_FILENAME="$LOCAL_USER_HOME_DIRECTORY/.ssh/$IDENTITY_FILENAME"
   # shellcheck disable=SC2086
   build_ssh_identity $IDENTITY_FILENAME
-
-  echo $IDENTITY_FILENAME
-  echo $IDENTITY
-
-  exit
-
 #
 # Processing Action
 #
@@ -654,27 +655,34 @@ function run_script() {
   SCRUB)
     display_info "ACTION: -S Scrub $NATS_SYSTEM_USER from the system."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
     echo "Scrubbing .config/nats and .local/share/nats from all server users."
-    scp $IDENTITY $ROOT_DIRECTORY/servers/savup-nats/scripts/remove-NATS-from-users.sh $WORKING_AS@$INSTANCE_DNS_IPV4:/tmp
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo sh /tmp/remove-NATS-from-users.sh"
+    # shellcheck disable=SC2086
+    scp $IDENTITY remove-NATS-from-users.sh $WORKING_AS@$SERVER_INSTANCE_IPV4:/tmp
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo sh /tmp/remove-NATS-from-users.sh"
     echo "Scrubbing $NATS_SYSTEM_USER user."
-    find_string_in_remote_file "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 $NATS_SYSTEM_USER /etc/passwd
+    # shellcheck disable=SC2086
+    find_string_in_remote_file "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_SYSTEM_USER /etc/passwd
     # shellcheck disable=SC2154
     if [ "$find_string_in_remote_file_result" == "found" ]; then
       # shellcheck disable=SC2029
-      ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo userdel --remove $NATS_SYSTEM_USER;"
+    # shellcheck disable=SC2086
+      ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo userdel --remove $NATS_SYSTEM_USER;"
     fi
     echo "Scrubbing executables, nats-server, natscli, and nsc."
-    find_remote_file "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 /usr/bin nats-server
+    # shellcheck disable=SC2086
+    find_remote_file "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 /usr/bin nats-server
     # shellcheck disable=SC2154
     if [ "$find_remote_file_result" == "found" ]; then
       # shellcheck disable=SC2029
-      ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo rm $NATS_BIN $NATSCLI_BIN $NSC_BIN;"
+      # shellcheck disable=SC2086
+      ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo rm $NATS_BIN $NATSCLI_BIN $NSC_BIN;"
     fi
     display_spacer
     ;;
