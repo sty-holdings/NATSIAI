@@ -60,6 +60,7 @@ function init_script() {
   . install-NATS-tools.sh
   . create-operator.sh
   . create-account.sh
+  . create-resolver.sh
   display_info "Script has been initialized."
 }
 
@@ -634,14 +635,13 @@ function run_script() {
   OPERNOKEYS)
     display_info "ACTION: -o Create an operator without a key and signing keys are not required."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
     validate_NATS_operator
     if [ "$validate_NATS_operator_result" == "failed" ]; then
-      display_error "One or more of the following are not set: NATS_OPERATOR."
       exit 99
     fi
     validate_working_as_home_directory
@@ -649,10 +649,11 @@ function run_script() {
     if [ "$validate_working_as_home_directory_result" == "failed" ]; then
       exit
     fi
-    keys='true'
+    keys='false'
     create_operator $keys
     user='SYS'
     home_directory=$WORKING_AS_HOME_DIRECTORY
+    # shellcheck disable=SC2086
     create_user_context $user $home_directory
     display_spacer
     ;;
@@ -693,9 +694,11 @@ function run_script() {
   RESOLVER)
     display_info "ACTION: -r Generate and install the resolver.conf file."
     validate_NATS_install_directory
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      exit 99
+    fi
     validate_NATS_operator
-    if [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_NATS_operator_result" == "failed" ]; then
-      display_error "One or more of the following are not set: NATS_INSTALL_DIRECTORY, NATS_OPERATOR."
+    if [ "$validate_NATS_operator_result" == "failed" ]; then
       exit 99
     fi
     create_resolver
