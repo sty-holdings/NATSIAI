@@ -52,8 +52,12 @@ function init_script() {
   display_info "Cloning configurations"
   git clone https://github.com/sty-holdings/configurations
   display_spacer
-  display_info "Configuration is available."
+  display_info "Configuration is installed."
   display_spacer
+#
+#  Initializing NATSIAI scripts
+  . install-server-NATS-export.sh
+  . install-NATS-tools.sh
   display_info "Script has been initialized."
 }
 
@@ -76,13 +80,12 @@ function print_exports() {
   echo "NATS_SERVER_NAME:\t\t$NATS_SERVER_NAME"
   echo "NATS_SYSTEM_USER:\t\t$NATS_SYSTEM_USER"
   echo "NATS TLS:"
-  if [ -z "$CERT_DIRECTORY" ] || [ -z "$CA_BUNDLE_FILENAME" ] || [ -z "$CERT_FILENAME" ] || [ -z "$CERT_KEY_FILENAME" ]; then
+  if [ -z "$TLS_CA_BUNDLE_FQN" ] || [ -z "$TLS_CERT_FQN" ] || [ -z "$TLS_CERT_KEY_FQN" ]; then
     echo "\t is not being used. No certificate information was provides."
   else
-    echo "\tCERT_DIRECTORY:\t\t$CERT_DIRECTORY"
-    echo "\tCA_BUNDLE_FILENAME:\t$CA_BUNDLE_FILENAME"
-    echo "\tCERT_FILENAME:\t\t$CERT_FILENAME"
-    echo "\tCERT_KEY_FILENAME:\t$CERT_KEY_FILENAME"
+    echo "\tTLS_CA_BUNDLE_FQN:\t$TLS_CA_BUNDLE_FQN"
+    echo "\tTLS_CERT_FQN:\t\t$TLS_CERT_FQN"
+    echo "\tTLS_CERT_KEY_FQN:\t$TLS_CERT_KEY_FQN"
   fi
   echo "NATS_URL:\t\t\t$NATS_URL"
   if [ -z "$NATS_WEBSOCKET_PORT" ]; then
@@ -94,10 +97,11 @@ function print_exports() {
   echo "NSC_INSTALL_URL:\t\t$NSC_INSTALL_URL"
   echo "ROOT_DIRECTORY:\t\t\t$ROOT_DIRECTORY"
   echo "SERVER_ENVIRONMENT:\t\t$SERVER_ENVIRONMENT"
-  echo "SYSTEM_USER_PARENT_GROUP:\t\t$SYSTEM_USER_PARENT_GROUP"
+  echo "SYSTEM_USER_PARENT_GROUP:\t$SYSTEM_USER_PARENT_GROUP"
   echo "SERVER_INSTANCE_IPV4:\t\t$SERVER_INSTANCE_IPV4"
   echo "TEMPLATE_DIRECTORY:\t\t$TEMPLATE_DIRECTORY"
   echo "WORKING_AS:\t\t\t$WORKING_AS"
+  echo "WORKING_AS_HOME_DIRECTORY:\t$WORKING_AS_HOME_DIRECTORY"
   display_spacer
 }
 
@@ -136,7 +140,8 @@ function print_usage() {
 function set_NATS_group_permissions() {
   echo "Setting NATS group permissions."
   # shellcheck disable=SC2034
-  set_NATS_group_permissions_result=$(ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo chmod -R 775 $NATS_INSTALL_DIRECTORY")
+  # shellcheck disable=SC2086
+  set_NATS_group_permissions_result=$(ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo chmod -R 775 $NATS_INSTALL_DIRECTORY")
   echo "Permissions are set."
 }
 
@@ -169,27 +174,27 @@ function validate_parameters() {
   fi
   if [ -z "$LOCAL_USER_HOME_DIRECTORY" ]; then
     local Failed="true"
-    display_error "The local users home directory (FQN) must be provided."
+    display_error "The LOCAL_USER_HOME_DIRECTORY (FQN) must be provided."
   fi
   if [ -z "$NATS_BIN" ]; then
     local Failed="true"
-    display_error "The NATS bin must be provided."
+    display_error "The NATS_BIN must be provided."
   fi
   if [ -z "$NATSCLI_BIN" ]; then
     local Failed="true"
-    display_error "The NATS CLI bin must be provided."
+    display_error "The NATSCLI_BIN must be provided."
   fi
   if [ -z "$NATS_SERVER_NAME" ]; then
     local Failed="true"
-    display_error "The NATS server name must be provided."
+    display_error "The NATS_SERVER_NAME must be provided."
   fi
   if [ -z "$NATS_SYSTEM_USER" ]; then
     local Failed="true"
-    display_error "The NATS system user must be provided."
+    display_error "The NATS_SYSTEM_USER must be provided."
   fi
   if [ -z "$NSC_BIN" ]; then
     local Failed="true"
-    display_error "The NSC bin must be provided."
+    display_error "The NSC_BIN must be provided."
   fi
   validate_server_environment
   # shellcheck disable=SC2154
@@ -198,19 +203,19 @@ function validate_parameters() {
   fi
   if [ -z "$SERVER_INSTANCE_IPV4" ]; then
     local Failed="true"
-    display_error "The IPV4 address or DNS entry must be provided."
+    display_error "The SERVER_INSTANCE_IPV4 must be provided. Can be an IP address or DNS entry."
   fi
   if [ -z "$SYSTEM_USER" ]; then
     local Failed="true"
-    display_error "The system user must be provided."
+    display_error "The SYSTEM_USER must be provided."
   fi
   if [ -z "$SYSTEM_USER_HOME_DIRECTORY" ]; then
     local Failed="true"
-    display_error "The system users home directory (FQN) must be provided."
+    display_error "The SYSTEM_USER_HOME_DIRECTORY (FQN) must be provided."
   fi
   if [ -z "$WORKING_AS" ]; then
     local Failed="true"
-    display_error "The working as users must be provided."
+    display_error "The WORKING_AS users must be provided."
   fi
 
   if [ "$Failed" == "true" ]; then
@@ -255,7 +260,7 @@ function validate_NATS_install_directory() {
 function validate_NATS_operator() {
   if [ -z "$NATS_OPERATOR" ]; then
     validate_NATS_operator_result="failed"
-    display_error "The $NATS_OPERATOR must be provided."
+    display_error "The NATS_OPERATOR must be provided."
   fi
 }
 
@@ -386,7 +391,6 @@ function run_script() {
   myExports=$(cat /tmp/$now-exports.sh)
   # shellcheck disable=SC2086
   eval $myExports
-  exit
   rm /tmp/*-exports.sh
 #
 # Validate yaml file parameters
@@ -415,6 +419,7 @@ function run_script() {
   ACCOUNT)
     display_info "ACTION: -a Create an account with a key and make signing keys required."
     action_if=running
+    # shellcheck disable=SC2086
     check_server_running $SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
@@ -422,8 +427,9 @@ function run_script() {
     fi
     are_cert_settings_valid
     validate_NATS_account
+    # shellcheck disable=SC2154
     if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_account_result" == "failed" ]; then
-      display_error "One or more of the following are not set: CA_BUNDLE_FILENAME, CERT_DIRECTORY, CERT_FILENAME, CERT_KEY_FILENAME, NATS_ACCOUNT."
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQB, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_ACCOUNT."
       exit 99
     fi
     keys='true'
@@ -450,10 +456,9 @@ function run_script() {
     display_info "ACTION: -C Installing TLS certificates for NATS."
     are_cert_settings_valid
     validate_NATS_install_directory
-    validate_server_environment
     # shellcheck disable=SC2154
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_server_environment_result" == "failed" ]; then
-      display_error "One or more of the following are not set: CA_BUNDLE_FILENAME, CERT_DIRECTORY, CERT_FILENAME, CERT_KEY_FILENAME, NATS_INSTALL_DIRECTORY, SERVER_ENVIRONMENT."
+    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_INSTALL_DIRECTORY."
       exit 99
     fi
     install_tls_certs_key $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER
@@ -462,7 +467,8 @@ function run_script() {
   INSTALL)
     display_info "ACTION: -i Installing nats-server, natscli, nsc and create nats.conf."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
@@ -472,7 +478,6 @@ function run_script() {
     validate_natscli_install_url
     validate_nsc_install_url
     if [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_nats_server_install_url_result" == "failed" ] || [ "$validate_natscli_install_url_result" == "failed" ] || [ "$validate_nsc_install_url_result" == "failed" ]; then
-      display_error "One or more of the following are not set: NATS_INSTALL_DIRECTORY, NATSCLI_INSTALL_URL, NATS_SERVER_INSTALL_URL, NSC_INSTALL_URL."
       exit 99
     fi
     install_NATS_tools
@@ -486,18 +491,18 @@ function run_script() {
     validate_NATS_install_directory
     validate_template_directory
     if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_account_result" == "failed" ] || [ "$validate_NATS_account_user_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ] || [ "$validate_NATS_install_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: CA_BUNDLE_FILENAME, CERT_DIRECTORY, CERT_FILENAME, CERT_KEY_FILENAME, NATS_ACCOUNT, NATS_ACCOUNT_USER, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_ACCOUNT, NATS_ACCOUNT_USER, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
       exit 99
     fi
-    process_running "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
+    process_running "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
     # shellcheck disable=SC2154
     if [ "$process_running_result" == 'found' ]; then
       echo "nats-server is running."
     else
       display_warning "A NATS Server is not running on this system!! "
       echo "Starting the server, now."
-      ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo systemctl start nats-server.service"
-      process_running "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
+      ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl start nats-server.service"
+      process_running "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
       # shellcheck disable=SC2154
       if [ "$process_running_result" == 'found' ]; then
         echo "nats-server is running."
@@ -507,7 +512,7 @@ function run_script() {
       fi
     fi
     # shellcheck disable=SC2029
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc add user --account $NATS_ACCOUNT $NATS_ACCOUNT_USER"
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add user --account $NATS_ACCOUNT $NATS_ACCOUNT_USER"
     user=$NATS_ACCOUNT_USER
     home_directory=/home/$NATS_ACCOUNT_USER
     create_user_context $user $home_directory
@@ -525,7 +530,7 @@ function run_script() {
     validate_NATS_install_directory
     validate_template_directory
     if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: CA_BUNDLE_FILENAME, CERT_DIRECTORY, CERT_FILENAME, CERT_KEY_FILENAME, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
       exit 99
     fi
     set_NATS_port
@@ -564,8 +569,13 @@ function run_script() {
     validate_NATS_operator
     validate_template_directory
     if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_operator_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: CA_BUNDLE_FILENAME, CERT_DIRECTORY, CERT_FILENAME, CERT_KEY_FILENAME, NATS_OPERATOR, TEMPLATE_DIRECTORY."
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_OPERATOR, TEMPLATE_DIRECTORY."
       exit 99
+    fi
+    validate_working_as_home_directory
+    # shellcheck disable=SC2154
+    if [ "$validate_working_as_home_directory_result" == "failed" ]; then
+      exit
     fi
     keys='true'
     create_operator $keys
@@ -586,6 +596,11 @@ function run_script() {
     if [ "$validate_NATS_operator_result" == "failed" ]; then
       display_error "One or more of the following are not set: NATS_OPERATOR."
       exit 99
+    fi
+    validate_working_as_home_directory
+    # shellcheck disable=SC2154
+    if [ "$validate_working_as_home_directory_result" == "failed" ]; then
+      exit
     fi
     keys='true'
     create_operator $keys
@@ -612,9 +627,10 @@ function run_script() {
     fi
     add_tls='false'
     install_NATS_conf $add_tls
-    install_systemd_service "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 'nats-server' $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER $TEMPLATE_DIRECTORY 'nats-server-servicefile.template' 'nats-server.service'
+    install_systemd_service "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER $TEMPLATE_DIRECTORY 'nats-server-servicefile
+    .template' 'nats-server.service'
     echo "Starting nats-server via systemd."
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo systemctl start nats-server.service"
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl start nats-server.service"
     action_if=stopped
     check_server_running $SERVER_NAME $action_if
     # shellcheck disable=SC2181
@@ -622,9 +638,9 @@ function run_script() {
       exit 99
     fi
     echo "Pushing to nats-server."
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc push -A"
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc push -A"
     echo "Stopping nats-server via systemd."
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo systemctl stop nats-server.service"
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl stop nats-server.service"
     display_spacer
     ;;
   RESOLVER)
@@ -674,18 +690,17 @@ function run_script() {
     ;;
   SYSTEMUSER)
     display_info "ACTION: -U Create the $NATS_SYSTEM_USER system user. User can not login."
-
-    echo "x=$SYSTEM_USER_PARENT_GROUP"
-
     validate_system_user_parent_group
     validate_working_as_home_directory
+    # shellcheck disable=SC2154
     if [ "$validate_server_user_parent_group_result" == "failed" ] || [ "$validate_working_as_home_directory_result" == "failed" ]; then
       exit
     fi
     # shellcheck disable=SC2086
     build_ssh_identity $IDENTITY_FILENAME
     login_allowed='false'
-    install_server_user "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 $NATS_SYSTEM_USER $SERVER_USER_PARENT_GROUP $login_allowed
+    # shellcheck disable=SC2086
+    install_server_user "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_SYSTEM_USER $SYSTEM_USER_PARENT_GROUP $login_allowed
     # shellcheck disable=SC2154
     if [ "$install_server_user_result" == "failed" ]; then
       exit 99

@@ -14,34 +14,48 @@ function install_NATS_tools() {
   local nsc_install_dir=/tmp/nsc-install-dir.tmp
 
   echo "Installing nats-server."
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo mkdir $NATS_INSTALL_DIRECTORY/install; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/install; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/install; curl -L $NATS_SERVER_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nats-server.zip;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo unzip -o $NATS_INSTALL_DIRECTORY/install/nats-server.zip -d $NATS_INSTALL_DIRECTORY/install; find /home/$NATS_SYSTEM_USER/ -type d -name nats-server* > $server_install_dir;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "cd "'$(cat' "$server_install_dir"')'"; sudo cp nats-server $NATS_BIN;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo mkdir $NATS_INSTALL_DIRECTORY/install; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/install; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/install; curl -L $NATS_SERVER_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nats-server.zip;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo unzip -o $NATS_INSTALL_DIRECTORY/install/nats-server.zip -d $NATS_INSTALL_DIRECTORY/install; find /home/$NATS_SYSTEM_USER/ -type d -name nats-server* > $server_install_dir;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "cd "'$(cat' "$server_install_dir"')'"; sudo cp nats-server $NATS_BIN;"
 
   echo "Installing natscli."
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "curl -L $NATSCLI_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nats-cli.zip;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nats-cli.zip -d $NATS_INSTALL_DIRECTORY/install/.; find /home/$NATS_SYSTEM_USER/install -type d -name 'nats*' -not -name 'nats-server*' > $natscli_install_dir;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "cd "'$(cat' "$natscli_install_dir"')'"; sudo cp nats $NATSCLI_BIN;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "curl -L $NATSCLI_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nats-cli.zip;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nats-cli.zip -d $NATS_INSTALL_DIRECTORY/install/.; find /home/$NATS_SYSTEM_USER/install -type d -name 'nats*' -not -name 'nats-server*' > $natscli_install_dir;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "cd "'$(cat' "$natscli_install_dir"')'"; sudo cp nats $NATSCLI_BIN;"
 
   echo "Installing natscli."
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "curl -L $NSC_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nsc.zip;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nsc.zip -d $NATS_INSTALL_DIRECTORY/install/.;"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "cd $NATS_INSTALL_DIRECTORY/install; sudo cp nsc $NSC_BIN;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "curl -L $NSC_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nsc.zip;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nsc.zip -d $NATS_INSTALL_DIRECTORY/install/.;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "cd $NATS_INSTALL_DIRECTORY/install; sudo cp nsc $NSC_BIN;"
 
   echo "Installing generate_nats_creds.sh script."
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "mkdir $NATS_INSTALL_DIRECTORY/scripts; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/scripts; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/scripts;"
-  scp $IDENTITY $ROOT_DIRECTORY/servers/savup-nats/scripts/generate-nats-creds.sh $WORKING_AS@$INSTANCE_DNS_IPV4:$NATS_INSTALL_DIRECTORY/scripts
-  scp $IDENTITY $ROOT_DIRECTORY/servers/savup-nats/scripts/remove-NATS-from-users.sh $WORKING_AS@$INSTANCE_DNS_IPV4:$NATS_INSTALL_DIRECTORY/scripts
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/scripts/*; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/scripts/*;"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "mkdir $NATS_INSTALL_DIRECTORY/scripts; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/scripts; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/scripts;"
+  # shellcheck disable=SC2086
+  scp $IDENTITY generate-nats-creds.sh $WORKING_AS@$SERVER_INSTANCE_IPV4:$NATS_INSTALL_DIRECTORY/scripts
+  # shellcheck disable=SC2086
+  scp $IDENTITY remove-NATS-from-users.sh $WORKING_AS@$SERVER_INSTANCE_IPV4:$NATS_INSTALL_DIRECTORY/scripts
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/scripts/*; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/scripts/*;"
 
   echo "Creating the JWT directory"
-  ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "mkdir $NATS_INSTALL_DIRECTORY/jwt; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/jwt; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/jwt"
+  # shellcheck disable=SC2086
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "mkdir $NATS_INSTALL_DIRECTORY/jwt; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/jwt; sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/jwt"
 }
 
 # Test
 #export IDENTITY="-i /Users/syacko/.ssh/savup-local-0030"
 #export WORKING_AS=savup
-#export INSTANCE_DNS_IPV4=154.12.225.56
+#export SERVER_INSTANCE_IPV4=154.12.225.56
 #export NATS_INSTALL_DIRECTORY=/home/$NATS_SYSTEM_USER
 #export NATS_SERVER_INSTALL_URL=https://github.com/nats-io/nats-server/releases/download/v2.9.22/nats-server-v2.9.22-linux-amd64.zip
 #export NATS_BIN=/usr/bin/nats-server

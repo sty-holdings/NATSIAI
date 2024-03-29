@@ -44,6 +44,7 @@ function set_variable() {
 }
 
 function validate_arguments() {
+  # shellcheck disable=SC2086
   if [ -z $NATS_ACCOUNT ]; then
     local Failed="true"
     echo "ERROR: You have to provide a NATS account."
@@ -92,7 +93,9 @@ function run_script() {
 
   # Processing
   #
+  # shellcheck disable=SC2034
   account=$2
+  # shellcheck disable=SC2034
   user=$3
 
   echo " WARNING"
@@ -102,7 +105,9 @@ function run_script() {
   echo " WARNING          The created file is located in $HOME/user-creds"
   echo
 
+  # shellcheck disable=SC2086
   mkdir -p $HOME/user-creds
+  # shellcheck disable=SC2086
   nsc generate creds --account $NATS_ACCOUNT --name $NATS_ACCOUNT_USER > $HOME/user-creds/$NATS_ACCOUNT_USER
   echo "Credentials have been generated."
 

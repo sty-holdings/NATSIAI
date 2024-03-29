@@ -8,9 +8,9 @@ set -eo pipefail
 # Main function of this script
 function build_NATS_URL() {
   if [ -z "$NATS_PORT" ]; then
-    export NATS_URL="nats://$INSTANCE_DNS_IPV4:4222"
+    export NATS_URL="nats://$SERVER_INSTANCE_IPV4:4222"
   else
-    export NATS_URL="nats://$INSTANCE_DNS_IPV4:$NATS_PORT"
+    export NATS_URL="nats://$SERVER_INSTANCE_IPV4:$NATS_PORT"
   fi
 }
 

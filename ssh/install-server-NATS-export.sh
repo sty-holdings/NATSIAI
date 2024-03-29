@@ -21,11 +21,13 @@ function install_server_NATS_export() {
 #  echo "\$WORKING_AS_HOME_DIRECTORY=$WORKING_AS_HOME_DIRECTORY"
 #  echo "\$NATS_INSTALL_DIRECTORY=$NATS_INSTALL_DIRECTORY"
 
-  find_string_in_remote_file "$IDENTITY" $WORKING_AS $INSTANCE_DNS_IPV4 'NATS_HOME' $WORKING_AS_HOME_DIRECTORY/.bash_exports
+  # shellcheck disable=SC2086
+  find_string_in_remote_file "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'NATS_HOME' $WORKING_AS_HOME_DIRECTORY/.bash_exports
   # shellcheck disable=SC2154
   if [ "$find_string_in_remote_file_result" == "missing" ]; then
     # shellcheck disable=SC2029
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "echo export NATS_HOME=$NATS_INSTALL_DIRECTORY >>$WORKING_AS_HOME_DIRECTORY/.bash_exports"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "echo export NATS_HOME=$NATS_INSTALL_DIRECTORY >>$WORKING_AS_HOME_DIRECTORY/.bash_exports"
   fi
 }
 
