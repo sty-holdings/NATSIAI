@@ -9,18 +9,20 @@ set -eo pipefail
 function create_operator() {
   local keys=$1
 
-  echo "Creating NSC operator: $NATS_OPERATOR with SYS."
   if [ "$keys" == "false" ]; then
-    echo "Creating NSC operator: $NATS_OPERATOR with SYS without keys."
+    echo "Creating NSC operator: $NATS_OPERATOR and SYS without keys."
     # shellcheck disable=SC2029
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc add operator --sys --name $NATS_OPERATOR;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add operator --sys --name $NATS_OPERATOR;"
   else
-    echo "Creating NSC operator: $NATS_OPERATOR with SYS with keys."
+    echo "Creating NSC operator: $NATS_OPERATOR and SYS with keys."
     # shellcheck disable=SC2029
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc add operator --generate-signing-key --sys --name $NATS_OPERATOR;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add operator --generate-signing-key --sys --name $NATS_OPERATOR;"
     echo "NSC operator will require signed keys for accounts on $NATS_URL"
     # shellcheck disable=SC2029
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc edit operator --require-signing-keys --account-jwt-server-url $NATS_URL;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc edit operator --require-signing-keys --account-jwt-server-url $NATS_URL;"
   fi
 }
 
@@ -28,7 +30,7 @@ function create_operator() {
 #. /Users/syacko/workspace/styh-dev/src/albert/savup-nats/build-deploy/ssh/build_NATS_URL.sh
 #export IDENTITY="-i /Users/syacko/.ssh/savup-local-0030"
 #export WORKING_AS=savup
-#export INSTANCE_DNS_IPV4=154.12.225.56
+#export SERVER_INSTANCE_IPV4=154.12.225.56
 #export NATS_OPERATOR=test_1
 #build_NATS_URL
 #echo "Keys"

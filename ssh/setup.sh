@@ -58,6 +58,8 @@ function init_script() {
 #  Initializing NATSIAI scripts
   . install-server-NATS-export.sh
   . install-NATS-tools.sh
+  . create-operator.sh
+  . create-account.sh
   display_info "Script has been initialized."
 }
 
@@ -196,11 +198,11 @@ function validate_parameters() {
     local Failed="true"
     display_error "The NSC_BIN must be provided."
   fi
-  validate_server_environment
-  # shellcheck disable=SC2154
-  if [ "$validate_server_environment_result" == "failed" ]; then
-    exit 99
-  fi
+#  validate_server_environment
+#  # shellcheck disable=SC2154
+#  if [ "$validate_server_environment_result" == "failed" ]; then
+#    exit 99
+#  fi
   if [ -z "$SERVER_INSTANCE_IPV4" ]; then
     local Failed="true"
     display_error "The SERVER_INSTANCE_IPV4 must be provided. Can be an IP address or DNS entry."
@@ -420,16 +422,21 @@ function run_script() {
     display_info "ACTION: -a Create an account with a key and make signing keys required."
     action_if=running
     # shellcheck disable=SC2086
-    check_server_running $SERVER_NAME $action_if
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
-    are_cert_settings_valid
+    # shellcheck disable=SC2086
+    are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
+    # shellcheck disable=SC2154
+    if [ "$are_cert_settings_valid_result" == "no" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
+      exit 99
+    fi
     validate_NATS_account
     # shellcheck disable=SC2154
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_account_result" == "failed" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQB, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_ACCOUNT."
+    if [ "$validate_NATS_account_result" == "failed" ]; then
       exit 99
     fi
     keys='true'
@@ -439,7 +446,8 @@ function run_script() {
   ACCOUNTNOKEYS)
     display_info "ACTION: -A Create an account without a key and signing keys are not needed."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
@@ -454,13 +462,17 @@ function run_script() {
     ;;
   CERTS)
     display_info "ACTION: -C Installing TLS certificates for NATS."
-    are_cert_settings_valid
-    validate_NATS_install_directory
-    # shellcheck disable=SC2154
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_install_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_INSTALL_DIRECTORY."
+    are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
+    if [ "$are_cert_settings_valid_result" == "no" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
       exit 99
     fi
+    validate_NATS_install_directory
+    # shellcheck disable=SC2154
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      exit 99
+    fi
+    # shellcheck disable=SC2086
     install_tls_certs_key $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER
     display_spacer
     ;;
@@ -474,10 +486,19 @@ function run_script() {
       exit 99
     fi
     validate_NATS_install_directory
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      exit 99
+    fi
     validate_nats_server_install_url
+    if [ "$validate_nats_server_install_url_result" == "failed" ]; then
+      exit 99
+    fi
     validate_natscli_install_url
+    if [ "$validate_natscli_install_url_result" == "failed" ]; then
+      exit 99
+    fi
     validate_nsc_install_url
-    if [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_nats_server_install_url_result" == "failed" ] || [ "$validate_natscli_install_url_result" == "failed" ] || [ "$validate_nsc_install_url_result" == "failed" ]; then
+    if [ "$validate_nsc_install_url_result" == "failed" ]; then
       exit 99
     fi
     install_NATS_tools
@@ -485,15 +506,29 @@ function run_script() {
     ;;
   MEMBER)
     display_info "ACTION: -m Create a NATS account user and NATS context on server."
-    are_cert_settings_valid
-    validate_NATS_account
-    validate_NATS_account_user
-    validate_NATS_install_directory
-    validate_template_directory
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_account_result" == "failed" ] || [ "$validate_NATS_account_user_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ] || [ "$validate_NATS_install_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_ACCOUNT, NATS_ACCOUNT_USER, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+    # shellcheck disable=SC2086
+    are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
+    if [ "$are_cert_settings_valid_result" == "no" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
       exit 99
     fi
+    validate_NATS_account
+    if [ "$validate_NATS_account_result" == "failed" ]; then
+      exit 99
+    fi
+    validate_NATS_account_user
+    if [ "$validate_NATS_account_user_result" == "failed" ]; then
+      exit 99
+    fi
+    validate_NATS_install_directory
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      exit 99
+    fi
+    validate_template_directory
+    if [ "$validate_template_directory_result" == "failed" ]; then
+      exit 99
+    fi
+    # shellcheck disable=SC2086
     process_running "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
     # shellcheck disable=SC2154
     if [ "$process_running_result" == 'found' ]; then
@@ -526,11 +561,18 @@ function run_script() {
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
-    are_cert_settings_valid
+    # shellcheck disable=SC2086
+    are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
+    if [ "$are_cert_settings_valid_result" == "no" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
+      exit 99
+    fi
     validate_NATS_install_directory
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
+      exit 99
+    fi
     validate_template_directory
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+    if [ "$validate_template_directory_result" == "failed" ]; then
       exit 99
     fi
     set_NATS_port
@@ -560,16 +602,20 @@ function run_script() {
   OPER)
     display_info "ACTION: -o Create an operator with a key and make signing keys required."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
-    are_cert_settings_valid
+    # shellcheck disable=SC2086
+    are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
+    if [ "$are_cert_settings_valid_result" == "no" ]; then
+      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
+      exit 99
+    fi
     validate_NATS_operator
-    validate_template_directory
-    if [ "$are_cert_settings_valid_result" == "no" ] || [ "$validate_NATS_operator_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN, NATS_OPERATOR, TEMPLATE_DIRECTORY."
+    if  [ "$validate_NATS_operator_result" == "failed" ]; then
       exit 99
     fi
     validate_working_as_home_directory
@@ -581,6 +627,7 @@ function run_script() {
     create_operator $keys
     user='SYS'
     home_directory=$WORKING_AS_HOME_DIRECTORY
+    # shellcheck disable=SC2086
     create_user_context $user $home_directory
     display_spacer
     ;;

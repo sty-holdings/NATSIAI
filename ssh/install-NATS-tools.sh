@@ -29,11 +29,11 @@ function install_NATS_tools() {
   # shellcheck disable=SC2086
   ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "cd "'$(cat' "$natscli_install_dir"')'"; sudo cp nats $NATSCLI_BIN;"
 
-  echo "Installing natscli."
+  echo "Installing nsc."
   # shellcheck disable=SC2086
   ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "curl -L $NSC_INSTALL_URL -o $NATS_INSTALL_DIRECTORY/install/nsc.zip;"
   # shellcheck disable=SC2086
-  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nsc.zip -d $NATS_INSTALL_DIRECTORY/install/.;"
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "unzip -o $NATS_INSTALL_DIRECTORY/install/nsc.zip -d $NATS_INSTALL_DIRECTORY/install/.;sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/install; sudo chmod -R 775 $NATS_INSTALL_DIRECTORY/install; "
   # shellcheck disable=SC2086
   ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "cd $NATS_INSTALL_DIRECTORY/install; sudo cp nsc $NSC_BIN;"
 

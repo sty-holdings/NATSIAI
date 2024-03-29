@@ -12,11 +12,14 @@ function create_account() {
 
   echo "Creating NSC account: $NATS_ACCOUNT"
   if [ "$keys" == "false" ]; then
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc add account $NATS_ACCOUNT;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add account $NATS_ACCOUNT;"
   else
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc add account $NATS_ACCOUNT;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add account $NATS_ACCOUNT;"
     echo "NSC account will require signed keys for accounts on $NATS_URL"
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nsc edit account $NATS_ACCOUNT --sk generate;"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc edit account $NATS_ACCOUNT --sk generate;"
   fi
 }
 

@@ -16,9 +16,9 @@ function build_NATS_URL() {
 
 # Test
 #export NATS_PORT
-#export INSTANCE_DNS_IPV4='0.0.0.0'
+#export SERVER_INSTANCE_IPV4='0.0.0.0'
 #build_NATS_URL
-#echo "TEST \$INSTANCE_DNS_IPV4=$INSTANCE_DNS_IPV4"
+#echo "TEST \$SERVER_INSTANCE_IPV4=$SERVER_INSTANCE_IPV4"
 #export CA_BUNDLE_FILENAME="populated"
 #export CERT_FILENAME="populated"
 #export CERT_KEY_FILENAME="populated"
