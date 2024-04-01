@@ -1,0 +1,18 @@
+{
+  "description": "",
+  "url": "$NATS_URL",
+  "token": "",
+  "user": "",
+  "password": "",
+  "creds": "/home/$WORKING_AS/.local/share/nats/nsc/keys/creds/$NATS_OPERATOR/$NATS_ACCOUNT/$NATS_ACCOUNT_USER.creds",
+  "nkey": "",
+  "ca": "$NATS_INSTALL_DIRECTORY/.certs/$TLS_CA_BUNDLE_FQN",
+  "cert": "$NATS_INSTALL_DIRECTORY/.certs/$TLS_CERT_FQN",
+  "key": "$NATS_INSTALL_DIRECTORY/.certs/$TLS_CERT_KEY_FQN",
+  "nsc": "nsc://$NATS_OPERATOR/$NATS_ACCOUNT/$NATS_ACCOUNT_USER",
+  "jetstream_domain": "",
+  "jetstream_api_prefix": "",
+  "jetstream_event_prefix": "",
+  "inbox_prefix": "",
+  "user_jwt": ""
+}

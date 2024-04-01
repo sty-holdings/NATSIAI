@@ -1,0 +1,13 @@
+
+websocket {
+    port: $NATS_WEBSOCKET_PORT
+    tls: {
+        ca_file:   "$NATS_INSTALL_DIRECTORY/.certs/ca_bundle.crt"
+        cert_file: "$NATS_INSTALL_DIRECTORY/.certs/cert.crt"
+        key_file:  "$NATS_INSTALL_DIRECTORY/.certs/cert_private.key"
+        verify: false
+        timeout: 2
+    }
+#    no_tls: true
+    compression: true
+    }

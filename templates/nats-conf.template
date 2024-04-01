@@ -1,0 +1,5 @@
+#listen: localhost:4222 # This will only allow access on the local host machine
+listen: 0.0.0.0:$NATS_PORT    # This will allow access from anywhere on the internet
+server_name: $SERVER_INSTANCE_IPV4
+
+include 'includes/resolver.conf' # This is relative to the location of this file

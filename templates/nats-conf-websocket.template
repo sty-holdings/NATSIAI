@@ -1,0 +1,6 @@
+
+websocket {
+    port: $NATS_WEBSOCKET_PORT
+    no_tls: true
+    compression: true
+    }

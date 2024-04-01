@@ -9,14 +9,21 @@ set -eo pipefail
 function install_NATS_conf() {
   local add_tls=$1
 
+  # shellcheck disable=SC2155
+  export TLS_CA_BUNDLE_FILENAME=$(basename "$TLS_CA_BUNDLE_FQN")
+  # shellcheck disable=SC2155
+  export TLS_CERT_FILENAME=$(basename "$TLS_CERT_FQN")
+  # shellcheck disable=SC2155
+  export TLS_CERT_KEY_FILENAME=$(basename "$TLS_CERT_KEY_FQN")
+
   if [ "$add_tls" == "false" ]; then
     echo "Installing NON-TLS NATS configuration file."
-    envsubst <$TEMPLATE_DIRECTORY/nats-conf.template >/tmp/nats-conf-top.tmp
-    envsubst <$TEMPLATE_DIRECTORY/nats-conf-websocket.template >/tmp/nats-conf-websocket.tmp
+    envsubst <../templates/nats-conf.template >/tmp/nats-conf-top.tmp
+    envsubst <../templates/nats-conf-websocket.template >/tmp/nats-conf-websocket.tmp
   else
     echo "Installing TLS NATS configuration file."
-    envsubst <$TEMPLATE_DIRECTORY/nats-conf-tls.template >/tmp/nats-conf-top.tmp
-    envsubst <$TEMPLATE_DIRECTORY/nats-conf-websocket-tls.template >/tmp/nats-conf-websocket.tmp
+    envsubst <../templates/nats-conf-tls.template >/tmp/nats-conf-top.tmp
+    envsubst <../templates/nats-conf-websocket-tls.template >/tmp/nats-conf-websocket.tmp
   fi
 
   if [ -n "$NATS_WEBSOCKET_PORT" ]; then
@@ -26,8 +33,11 @@ function install_NATS_conf() {
     cp /tmp/nats-conf-top.tmp /tmp/nats-conf.tmp
   fi
 
-    scp $IDENTITY /tmp/nats-conf.tmp $WORKING_AS@$INSTANCE_DNS_IPV4:$NATS_INSTALL_DIRECTORY/nats.conf
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/nats.conf; sudo chmod -R 774 $NATS_INSTALL_DIRECTORY/nats.conf;"
+  # shellcheck disable=SC2086
+  scp $IDENTITY /tmp/nats-conf.tmp $WORKING_AS@$SERVER_INSTANCE_IPV4:$NATS_INSTALL_DIRECTORY/nats.conf
+  # shellcheck disable=SC2086
+  # shellcheck disable=SC2029
+  ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo chown -R $NATS_SYSTEM_USER $NATS_INSTALL_DIRECTORY/nats.conf; sudo chmod -R 774 $NATS_INSTALL_DIRECTORY/nats.conf;"
 }
 
 # Test

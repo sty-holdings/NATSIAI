@@ -12,24 +12,32 @@ function create_user_context() {
 
   # shellcheck disable=SC2029
   if [ "$user" == "SYS" ] || [ "$user" == "sys" ]; then
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nats context save ${NATS_OPERATOR}_sys --nsc nsc://$NATS_OPERATOR/SYS/sys"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nats context save ${NATS_OPERATOR}_sys --nsc nsc://$NATS_OPERATOR/SYS/sys"
     user=${NATS_OPERATOR}_sys
   else
-    ssh $IDENTITY $WORKING_AS@$INSTANCE_DNS_IPV4 "nats context save $user"
+    # shellcheck disable=SC2086
+    ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nats context save $user"
   fi
 
-  are_cert_settings_valid
+  # shellcheck disable=SC2086
+  are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
   # shellcheck disable=SC2154
   if [ "$are_cert_settings_valid_result" == "no" ]; then
     echo "Creating NON-TLS context file"
-    envsubst <$TEMPLATE_DIRECTORY/nats.context.template >/tmp/${user}_context.tmp
+    # shellcheck disable=SC2086
+    envsubst <../templates/nats.context.template >/tmp/${user}_context.tmp
   else
+    # shellcheck disable=SC2086
     echo "Creating TLS context file"
-    envsubst <$TEMPLATE_DIRECTORY/nats.context.tls.template >/tmp/${user}_context.tmp
+    # shellcheck disable=SC2086
+    envsubst <../templates/nats.context.tls.template >/tmp/${user}_context.tmp
   fi
 
-  scp $IDENTITY /tmp/${user}_context.tmp $WORKING_AS@$INSTANCE_DNS_IPV4:$home_directory/.config/nats/context/$user.json
-  scp $IDENTITY /tmp/${user}_context.tmp $WORKING_AS@$INSTANCE_DNS_IPV4:$home_directory/.config/nats/context/$user.json.bkup
+  # shellcheck disable=SC2086
+  scp $IDENTITY /tmp/${user}_context.tmp $WORKING_AS@$SERVER_INSTANCE_IPV4:$home_directory/.config/nats/context/$user.json
+  # shellcheck disable=SC2086
+  scp $IDENTITY /tmp/${user}_context.tmp $WORKING_AS@$SERVER_INSTANCE_IPV4:$home_directory/.config/nats/context/$user.json.bkup
 }
 
 # Test

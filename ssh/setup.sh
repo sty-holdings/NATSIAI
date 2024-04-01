@@ -43,6 +43,7 @@ function init_script() {
   #  Core
   . core-devops/scripts/0-initialize-core-scripts.sh
   #
+
   display_spacer
   #
   # Pulling configuration from Github
@@ -61,6 +62,10 @@ function init_script() {
   . create-operator.sh
   . create-account.sh
   . create-resolver.sh
+  . install-NATS-conf.sh
+  . create-user-context.sh
+  . build-NATS-URL.sh
+  . install-NATS-conf.sh
   display_info "Script has been initialized."
 }
 
@@ -98,11 +103,8 @@ function print_exports() {
   fi
   echo "NSC_BIN:\t\t\t$NSC_BIN"
   echo "NSC_INSTALL_URL:\t\t$NSC_INSTALL_URL"
-  echo "ROOT_DIRECTORY:\t\t\t$ROOT_DIRECTORY"
-  echo "SERVER_ENVIRONMENT:\t\t$SERVER_ENVIRONMENT"
   echo "SYSTEM_USER_PARENT_GROUP:\t$SYSTEM_USER_PARENT_GROUP"
   echo "SERVER_INSTANCE_IPV4:\t\t$SERVER_INSTANCE_IPV4"
-  echo "TEMPLATE_DIRECTORY:\t\t$TEMPLATE_DIRECTORY"
   echo "WORKING_AS:\t\t\t$WORKING_AS"
   echo "WORKING_AS_HOME_DIRECTORY:\t$WORKING_AS_HOME_DIRECTORY"
   display_spacer
@@ -126,7 +128,8 @@ function print_usage() {
   echo "  -U\t Create the NATS system user ($NATS_SYSTEM_USER). User can not login."
   echo "  -i\t (Skip -T) Installing nats-server, natscli, nsc and create nats.conf with TLS."
   echo "  -T\t (Skip -i) Installing nats-server, natscli, nsc and create nats.conf without TLS."
-  echo "  -o\t Create an operator with a key and make signing keys required."
+  echo "  -o\t (Skip -O)Create an operator with a key and make signing keys required."
+  echo "  -O\t (Skip -o)Create an operator without a key and signing keys are not needed."
   echo "  -a\t (Skip -A) Create an account with a key and make signing keys required."
   echo "  -A\t (Skip -a) Create an account without a key and signing keys are unnecessary."
   echo "  -r\t Generate and install the resolver.conf file."
@@ -134,7 +137,6 @@ function print_usage() {
   echo "  -n\t (Skip -N) Installing nats.conf with TLS settings. Make sure to also run -C."
   echo "  -N\t (Skip -n) Installing nats.conf without TLS settings."
   echo "  -C\t Installing TLS certificates for NATS."
-  echo "  -O\t Create an operator without a key and signing keys are not needed."
   echo "  -m\t Create a NATS account user and NATS context on server."
   echo
 }
@@ -283,14 +285,6 @@ function validate_nsc_install_url() {
   fi
 }
 
-# shellcheck disable=SC2034
-function validate_template_directory() {
-  if [ -z "$TEMPLATE_DIRECTORY" ]; then
-    validate_template_directory_result="failed"
-    display_error "The TEMPLATE_DIRECTORY must be provided."
-  fi
-}
-
 # Main function of this script
 function run_script() {
   if [ "$#" == "0" ]; then
@@ -396,6 +390,10 @@ function run_script() {
   eval $myExports
   rm /tmp/*-exports.sh
 #
+# Build NATS_URL
+#
+  build_NATS_URL
+#
 # Validate yaml file parameters
 #
   validate_parameters
@@ -463,9 +461,9 @@ function run_script() {
     ;;
   CERTS)
     display_info "ACTION: -C Installing TLS certificates for NATS."
+    # shellcheck disable=SC2086
     are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
     if [ "$are_cert_settings_valid_result" == "no" ]; then
-      display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
       exit 99
     fi
     validate_NATS_install_directory
@@ -474,7 +472,7 @@ function run_script() {
       exit 99
     fi
     # shellcheck disable=SC2086
-    install_tls_certs_key $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER
+    install_tls_certs_key "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_INSTALL_DIRECTORY $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN $SYSTEM_USER
     display_spacer
     ;;
   INSTALL)
@@ -525,10 +523,6 @@ function run_script() {
     if [ "$validate_NATS_install_directory_result" == "failed" ]; then
       exit 99
     fi
-    validate_template_directory
-    if [ "$validate_template_directory_result" == "failed" ]; then
-      exit 99
-    fi
     # shellcheck disable=SC2086
     process_running "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
     # shellcheck disable=SC2154
@@ -548,6 +542,7 @@ function run_script() {
       fi
     fi
     # shellcheck disable=SC2029
+    # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add user --account $NATS_ACCOUNT $NATS_ACCOUNT_USER"
     user=$NATS_ACCOUNT_USER
     home_directory=/home/$NATS_ACCOUNT_USER
@@ -557,7 +552,8 @@ function run_script() {
   NATSCONF)
     display_info "ACTION: -n Installing nats.conf with TLS settings. Make sure to also run -C."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
@@ -572,10 +568,6 @@ function run_script() {
     if [ "$validate_NATS_install_directory_result" == "failed" ]; then
       exit 99
     fi
-    validate_template_directory
-    if [ "$validate_template_directory_result" == "failed" ]; then
-      exit 99
-    fi
     set_NATS_port
     add_tls='true'
     install_NATS_conf $add_tls
@@ -584,15 +576,14 @@ function run_script() {
   NATSCONFNOTLS)
     display_info "ACTION: -N Installing nats.conf without TLS settings."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
-    validate_template_directory
     validate_NATS_install_directory
-    if [ "$validate_template_directory_result" == "failed" ] || [ "$validate_NATS_install_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
       exit 99
     fi
     set_NATS_port
@@ -635,6 +626,7 @@ function run_script() {
   OPERNOKEYS)
     display_info "ACTION: -o Create an operator without a key and signing keys are not required."
     action_if=running
+    # shellcheck disable=SC2086
     check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
@@ -660,34 +652,37 @@ function run_script() {
   PUSH)
     display_info "ACTION: -P Push the operator, account, user, and resolver."
     action_if=running
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
     set_NATS_port
     validate_NATS_install_directory
-    validate_template_directory
-    # shellcheck disable=SC2154
-    if [ "$validate_NATS_install_directory_result" == "failed" ] || [ "$validate_template_directory_result" == "failed" ]; then
-      display_error "One or more of the following are not set: NATS_INSTALL_DIRECTORY, TEMPLATE_DIRECTORY."
+    if [ "$validate_NATS_install_directory_result" == "failed" ]; then
       exit 99
     fi
     add_tls='false'
     install_NATS_conf $add_tls
-    install_systemd_service "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER $TEMPLATE_DIRECTORY 'nats-server-servicefile
-    .template' 'nats-server.service'
+    # shellcheck disable=SC2086
+    # shellcheck disable=SC2046
+    install_systemd_service "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_SERVER_NAME $NATS_INSTALL_DIRECTORY $NATS_SYSTEM_USER ../templates/nats-server-servicefile.template $NATS_SERVER_NAME.service
     echo "Starting nats-server via systemd."
+    # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl start nats-server.service"
     action_if=stopped
-    check_server_running $SERVER_NAME $action_if
+    # shellcheck disable=SC2086
+    check_server_running $NATS_SERVER_NAME $action_if
     # shellcheck disable=SC2181
     if [ "$?" -ne 0 ]; then
       exit 99
     fi
     echo "Pushing to nats-server."
+    # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc push -A"
     echo "Stopping nats-server via systemd."
+    # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl stop nats-server.service"
     display_spacer
     ;;

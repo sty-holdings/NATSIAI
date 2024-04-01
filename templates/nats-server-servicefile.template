@@ -1,0 +1,17 @@
+[Unit]
+Description=NATS message Service
+After=network.target
+StartLimitIntervalSec=10
+StartLimitBurst=1
+
+[Service]
+Type=exec
+Restart=always
+RestartSec=5
+User=$service_user_name
+
+ExecStart=/usr/bin/nats-server -c $install_directory/nats.conf
+ExecStop=nats-server -sl term
+
+[Install]
+WantedBy=default.target
