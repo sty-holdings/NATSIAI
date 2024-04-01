@@ -464,6 +464,7 @@ function run_script() {
     # shellcheck disable=SC2086
     are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN
     if [ "$are_cert_settings_valid_result" == "no" ]; then
+       display_error "One or more of the following are not set: TLS_CA_BUNDLE_FQN, TLS_CERT_FQN, TLS_CERT_KEY_FQN."
       exit 99
     fi
     validate_NATS_install_directory

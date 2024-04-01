@@ -5,49 +5,49 @@
 
 set -eo pipefail
 
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -S
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -S
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -U -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -U -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -i -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -i -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -o -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -o -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -a -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -a -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -r -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -r -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -P -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -P -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -n -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -n -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -C -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -C -D
 # shellcheck disable=SC2181
 if [ "$?" -ne 0 ]; then
   exit 0
 fi
-sh setup-ssh-nats.sh -y /Users/syacko/workspace/styh-dev/src/albert/servers/savup-nats/build-deploy/yaml/savup-local.yaml -m -D
+sh setup.sh -y configurations/yaml/local-natsiai.yaml -m -D
