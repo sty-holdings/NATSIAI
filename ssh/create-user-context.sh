@@ -12,6 +12,7 @@ function create_user_context() {
 
   # shellcheck disable=SC2029
   if [ "$user" == "SYS" ] || [ "$user" == "sys" ]; then
+    display_info "Creating SYS context."
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nats context save ${NATS_OPERATOR}_sys --nsc nsc://$NATS_OPERATOR/SYS/sys"
     user=${NATS_OPERATOR}_sys
@@ -19,6 +20,13 @@ function create_user_context() {
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nats context save $user"
   fi
+
+  # shellcheck disable=SC2155
+  export TLS_CA_BUNDLE_FILENAME=$(basename "$TLS_CA_BUNDLE_FQN")
+  # shellcheck disable=SC2155
+  export TLS_CERT_FILENAME=$(basename "$TLS_CERT_FQN")
+  # shellcheck disable=SC2155
+  export TLS_CERT_KEY_FILENAME=$(basename "$TLS_CERT_KEY_FQN")
 
   # shellcheck disable=SC2086
   are_cert_settings_valid $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN

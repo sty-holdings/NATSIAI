@@ -1,0 +1,8 @@
+NATS Cheat Sheet
+
+nsc env -o styh
+nsc describe account | operator | user | jwt
+nsc list accounts | keys | operators | users
+nsc select account | operator
+nsc validate
+

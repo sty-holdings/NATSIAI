@@ -107,6 +107,8 @@ function print_exports() {
   echo "SERVER_INSTANCE_IPV4:\t\t$SERVER_INSTANCE_IPV4"
   echo "WORKING_AS:\t\t\t$WORKING_AS"
   echo "WORKING_AS_HOME_DIRECTORY:\t$WORKING_AS_HOME_DIRECTORY"
+  display_info "(Optional) Member being Added:"
+  echo "NATS_ACCOUNT_USER:\t$NATS_ACCOUNT_USER"
   display_spacer
 }
 
@@ -473,7 +475,7 @@ function run_script() {
       exit 99
     fi
     # shellcheck disable=SC2086
-    install_tls_certs_key "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_INSTALL_DIRECTORY $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN $SYSTEM_USER
+    install_tls_certs_key "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_INSTALL_DIRECTORY $TLS_CA_BUNDLE_FQN $TLS_CERT_FQN $TLS_CERT_KEY_FQN $NATS_SYSTEM_USER
     display_spacer
     ;;
   INSTALL)
@@ -502,6 +504,8 @@ function run_script() {
       exit 99
     fi
     install_NATS_tools
+    # shellcheck disable=SC2086
+    install_cheat_sheet "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 $NATS_SYSTEM_USER "nats"
     display_spacer
     ;;
   MEMBER)
@@ -531,12 +535,14 @@ function run_script() {
       echo "nats-server is running."
     else
       display_warning "A NATS Server is not running on this system!! "
-      echo "Starting the server, now."
+      display_info "Starting the server, now."
+      # shellcheck disable=SC2086
       ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "sudo systemctl start nats-server.service"
+      # shellcheck disable=SC2086
       process_running "$IDENTITY" $WORKING_AS $SERVER_INSTANCE_IPV4 'nats-server' '^journalctl' # Check to see if NATS is running on remote server
       # shellcheck disable=SC2154
       if [ "$process_running_result" == 'found' ]; then
-        echo "nats-server is running."
+        display_info "nats-server is running."
       else
         display_warning "A NATS Server is STILL NOT running on this system!! INVESTIGATE - THERE ARE ISSUES."
         exit 99
@@ -545,8 +551,10 @@ function run_script() {
     # shellcheck disable=SC2029
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add user --account $NATS_ACCOUNT $NATS_ACCOUNT_USER"
+    display_info "Creating user context"
     user=$NATS_ACCOUNT_USER
-    home_directory=/home/$NATS_ACCOUNT_USER
+    home_directory=/home/$WORKING_AS
+    # shellcheck disable=SC2086
     create_user_context $user $home_directory
     display_spacer
     ;;
