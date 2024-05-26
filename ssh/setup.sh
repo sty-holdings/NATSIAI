@@ -34,24 +34,46 @@ export IDENTITY          # This is set by calling build-ssh-identity.sh function
 export IDENTITY_FILENAME # This is set by calling build-ssh-identity_filename.sh function build_ssh_identity_filename.
 WAIT="yes"
 DISPLAY_EXPORTS="yes"
+scriptDirectory="/Users/syacko/workspace/sty-holdings/NATSIAI/ssh"
 
 function init_script() {
-  echo "Remove existing core-devops directory, if any."
-  rm -rf core-devops
-  echo "Cloning Core DevOps scripts"
-  git clone https://github.com/sty-holdings/core-devops
-  #  Core
+  # needed to initialize the script and load core-devops scripts
+  if [ -d "$scriptDirectory/core-devops" ]; then
+    # found
+    if find "$scriptDirectory/core-devops" -mmin +5 -print | grep -q '.'; then
+      echo "Remove existing core-devops directory."
+      rm -rf core-devops
+      echo "Cloning Core DevOps scripts"
+      git clone https://github.com/sty-holdings/core-devops
+    fi
+  else
+      echo "Cloning Core DevOps scripts"
+      git clone https://github.com/sty-holdings/core-devops
+  fi
+  # shellcheck disable=SC2154
   . core-devops/scripts/0-initialize-core-scripts.sh
   #
-
   display_spacer
+  display_info "Core Devops scripts are installed and initialized."
+
   #
   # Pulling configuration from Github
   #
-  display_info "Remove existing configurations directory, if any."
-  rm -rf configurations
-  display_info "Cloning configurations"
-  git clone https://github.com/sty-holdings/configurations
+  if [ -d "$scriptDirectory/configurations" ]; then
+    # found
+    validate_file_age 5 "configurations"
+    # shellcheck disable=SC2154
+    if [ "$validate_file_age_result" == "old" ]; then
+      display_info "Remove existing configurations directory,."
+      rm -rf configurations
+      display_info "Cloning configurations"
+      git clone https://github.com/sty-holdings/configurations
+    fi
+  else
+    echo "test"
+    display_info "Cloning configurations"
+    git clone https://github.com/sty-holdings/configurations
+  fi
   display_spacer
   display_info "Configuration is installed."
   display_spacer
