@@ -10,16 +10,16 @@ function create_operator() {
   local keys=$1
 
   if [ "$keys" == "false" ]; then
-    echo "Creating NSC operator: $NATS_OPERATOR and SYS without keys."
+    display_info "Creating NSC operator: $NATS_OPERATOR and SYS without keys."
     # shellcheck disable=SC2029
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add operator --sys --name $NATS_OPERATOR;"
   else
-    echo "Creating NSC operator: $NATS_OPERATOR and SYS with keys."
+    display_info "Creating NSC operator: $NATS_OPERATOR and SYS with keys."
     # shellcheck disable=SC2029
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc add operator --generate-signing-key --sys --name $NATS_OPERATOR;"
-    echo "NSC operator will require signed keys for accounts on $NATS_URL"
+    display_info "NSC operator will require signed keys for accounts on $NATS_URL"
     # shellcheck disable=SC2029
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc edit operator --require-signing-keys --account-jwt-server-url $NATS_URL;"

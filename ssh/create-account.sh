@@ -9,6 +9,8 @@ set -eo pipefail
 # shellcheck disable=SC2029
 function create_account() {
   local keys=$1
+  local remote_home_directory=$2
+  local home_directory=$3
 
   echo "Creating NSC account: $NATS_ACCOUNT"
   if [ "$keys" == "false" ]; then
@@ -21,6 +23,10 @@ function create_account() {
     # shellcheck disable=SC2086
     ssh $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4 "nsc edit account $NATS_ACCOUNT --sk generate;"
   fi
+
+  display_info "Pull Operator/Account to local machine."
+  # shellcheck disable=SC2086
+  scp $IDENTITY $WORKING_AS@$SERVER_INSTANCE_IPV4:$remote_home_directory/.local/share/nats $home_directory/.config/nats/context
 }
 
 # Test
